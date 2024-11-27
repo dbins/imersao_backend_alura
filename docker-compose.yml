@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # Serviço MongoDB
+  mongodb:
+    image: mongo
+    container_name: mongodb-local
+    ports:
+      - "27017:27017"  # Mapeia a porta 27017 do container para a 27017 do host
+    volumes:
+      - ./mongo-data:/data/db  # Persistência de dados
+    networks:
+      - app-network
+
+  # Serviço da aplicação Backend (API Node.js)
+  api:
+    build: ./backend  # Supondo que seu código da API está na pasta 'backend'
+    container_name: api-node
+    ports:
+      - "3000:3000"  # Mapeia a porta 3000 do container para a 3000 do host
+    volumes:
+      - ./backend/uploads:/uploads  
+    environment:
+      - STRING_CONEXAO=mongodb://mongodb:27017/meu_banco  # Conexão com o MongoDB
+      - GEMINI_API_KEY= # Chave da API do Google Gemini
+    depends_on:
+      - mongodb  # Garante que o MongoDB será iniciado antes da aplicação API
+    networks:
+      - app-network
+
+  # Serviço do Frontend (Projeto Node.js que consome a API)
+  frontend:
+    build: ./frontend  # Supondo que o código do frontend está na pasta 'frontend'
+    container_name: frontend-node
+    ports:
+      - "8000:8000"  # Mapeia a porta 8000 do container para a 8000 do host
+    environment:
+      - API_URL=http://localhost:3000/posts  # Conexão com a API  
+    depends_on:
+      - api  # Garante que a API será iniciada antes do frontend
+    networks:
+      - app-network
+      
+  # Serviço do Mongo-Express (Interface Web para MongoDB)
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express
+    ports:
+      - "8081:8081"  # Mapeia a porta 8081 do container para a 8081 do host
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongodb  # Nome do serviço MongoDB
+      - ME_CONFIG_MONGODB_PORT=27017       # Porta do MongoDB
+      - ME_CONFIG_MONGODB_AUTH=false       # Desabilita autenticação
+      - ME_CONFIG_BASICAUTH=false
+    depends_on:
+      - mongodb  # Garante que o MongoDB será iniciado antes do mongo-express
+    networks:
+      - app-network
+      
+volumes:
+  mongo-data:  # Volume para persistência de dados do MongoDB
+
+networks:
+  app-network:  # Rede para comunicação entre os containers
+    driver: bridge
